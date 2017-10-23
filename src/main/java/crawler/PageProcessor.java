@@ -150,7 +150,7 @@ public class PageProcessor {
             for (int i = 0; i < results.size(); i++) {
                 Ad ad = new Ad();
                 ad.query = query;
-                ad.query_group_id = queryGroupId;
+                ad.queryGroupId = queryGroupId;
                 ad.keyWords = new ArrayList<>();
                 //#result_2 > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div:nth-child(1) > a > h2
                 //#result_3 > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div:nth-child(1) > a > h2
@@ -185,8 +185,8 @@ public class PageProcessor {
                 Element detail_url_ele = doc.select(detail_path).first();
                 if (detail_url_ele != null) {
                     String detail_url = detail_url_ele.attr("href");
-                    //System.out.println("detail = " + detail_url);
-                    ad.detail_url = detail_url;
+                    //System.out.println("detail = " + detailUrl);
+                    ad.detailUrl = detail_url;
                 } else {
                     logBFWriter.write("cannot parse detail for query:" + query + ", title: " + ad.title);
                     logBFWriter.newLine();
