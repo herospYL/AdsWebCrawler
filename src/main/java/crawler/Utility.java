@@ -42,21 +42,6 @@ public class Utility {
     }
 
     /**
-     * @param aArr The list of strings
-     * @param sSep The separator
-     * @return The concatenated string
-     */
-    public static String strJoin(List<String> aArr, String sSep) {
-        StringBuilder sbStr = new StringBuilder();
-        for (int i = 0; i < aArr.size(); i++) {
-            if (i > 0)
-                sbStr.append(sSep);
-            sbStr.append(aArr.get(i));
-        }
-        return sbStr.toString();
-    }
-
-    /**
      * @param tokens A list of token strings
      * @return A set of n-gram
      */
@@ -95,7 +80,6 @@ public class Utility {
         TokenStream tokenStream = new StandardFilter(tokenizer);
         tokenStream = new StopFilter(tokenStream, getStopWords(stopWords));
         tokenStream = new KStemFilter(tokenStream);
-        StringBuilder sb = new StringBuilder();
         CharTermAttribute charTermAttribute = tokenizer.addAttribute(CharTermAttribute.class);
 
         tokenStream.reset();
@@ -103,7 +87,6 @@ public class Utility {
             String term = charTermAttribute.toString();
 
             tokens.add(term);
-            sb.append(term).append(spaceSeparator);
         }
         tokenStream.end();
         tokenStream.close();

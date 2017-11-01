@@ -68,15 +68,11 @@ public class Pipeline extends Thread {
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file.getAbsoluteFile()))) {
                 while (true) {
                     if (adResult.ads.isEmpty()) {
-                        if (adResult.queries.isEmpty()) {
+                        if (adResult.queries.isEmpty() && adResult.queryCount.get() <= 0) {
                             break;
-                        } else {
-                            try {
-                                wait();
-                            } catch (InterruptedException e) {
-                                logger.trace(e.getMessage());
-                            }
                         }
+
+                        // Otherwise, keep waiting
                     } else {
                         Ad ad = this.adResult.ads.poll();
                         String jsonInString = this.mapper.writeValueAsString(ad);
