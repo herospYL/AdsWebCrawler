@@ -28,6 +28,7 @@ public class Pipeline extends Thread {
      * Default constructor
      */
     private Pipeline() {
+        super();
         this.mapper = new ObjectMapper();
     }
 

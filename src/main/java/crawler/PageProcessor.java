@@ -5,7 +5,6 @@ import ad.AdResult;
 import ad.Query;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,7 +20,7 @@ import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Set;
 
 
 /**
@@ -41,59 +40,31 @@ public class PageProcessor extends Thread{
 
     private static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36";
 
-    private static ImmutableList<String> titleList;
+    private static final String titleSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div:nth-child(1) > a > h2";
 
-    private static String categorySelector;
+    private static final String categorySelector = "#leftNav > #leftNavContainer > a-unordered-list.a-nostyle.a-vertical.a-spacing-base > div.a-row.a-expander-container.a-expander-extend-container > li:nth-child(1) > span > a > h4";
 
-    private static ImmutableList<String> thumbnailList;
+    private static final String thumbnailSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-left > div > div > a > img";
 
-    private static ImmutableList<String> detailList;
+    private static final String detailSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-left > div > div > a";
 
-    private static ImmutableList<String> brandList;
+    private static final String brandSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div:nth-child(2) > span:nth-child(2)";
 
-    private static ImmutableList<String> priceList;
+    private static final String priceSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-last-child(1) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span.a-color-base sx-zero-spacing > span > span";
 
-    private static ImmutableList<String> priceFractionList;
+    private static final String priceFractionSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-last-child(1) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span.a-color-base sx-zero-spacing > span > sup.sx-price-fractional";
 
     private static ImmutableMap<String, String> headers;
 
     private AdResult adResult;
 
+    private int number;
+
     public int timeOut = 10000;
 
+    public int totalPages = 5;
+
     static {
-        List<String> defaultTitleList = new ArrayList<>();
-        defaultTitleList.add(" > div > a-row.a-spacing-mini:nth-child(1) > div.a-row.a-spacing-none > a > h2");
-        defaultTitleList.add(" > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > a > h2");
-        titleList = ImmutableList.copyOf(defaultTitleList);
-
-        categorySelector = "#leftNav > #leftNavContainer > a-unordered-list.a-nostyle.a-vertical.a-spacing-base > li.s-ref-indent-one > span > h4";
-
-        List<String> defaultThumbnailList = new ArrayList<>();
-        defaultThumbnailList.add(" > div > a-row.a-spacing-base > div > div > a > img");
-        defaultThumbnailList.add(" > div > div > div > div.a-fixed-left-grid-col.a-col-left > div > div > a > img");
-        thumbnailList = ImmutableList.copyOf(defaultThumbnailList);
-
-        List<String> defaultDetailList = new ArrayList<>();
-        defaultDetailList.add(" > div > a-row.a-spacing-base > div > div > a > img");
-        defaultDetailList.add(" > div > div > div > div.a-fixed-left-grid-col.a-col-left > div > div > a");
-        detailList = ImmutableList.copyOf(defaultDetailList);
-
-        List<String> defaultBrandList = new ArrayList<>();
-        defaultBrandList.add(" > div > a-row.a-spacing-mini:nth-child(4) > a"); // Show only __ items, sponsored result does not have this
-        defaultBrandList.add(" > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div > span:nth-child(2)");
-        brandList = ImmutableList.copyOf(defaultBrandList);
-
-        List<String> defaultPriceList = new ArrayList<>();
-        defaultPriceList.add(" > div > a-row.a-spacing-mini:nth-child(2) > div > a > span.a-color-base.sx-zero-spacing > span > span");
-        defaultPriceList.add(" > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-child(3) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span > span > span");
-        priceList = ImmutableList.copyOf(defaultPriceList);
-
-        List<String> defaultPriceFractionList = new ArrayList<>();
-        defaultPriceFractionList.add(" > div > a-row.a-spacing-mini:nth-child(2) > div > a > span.a-color-base.sx-zero-spacing > span > sup.sx-price-fractional");
-        defaultPriceFractionList.add(" > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-child(3) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span > span > sup.sx-price-fractional");
-        priceFractionList = ImmutableList.copyOf(defaultPriceFractionList);
-
         HashMap<String, String> defaultHeaders = new HashMap<>();
         defaultHeaders.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         defaultHeaders.put("Accept-Encoding", "gzip, deflate, sdch, br");
@@ -102,18 +73,36 @@ public class PageProcessor extends Thread{
     }
 
     private PageProcessor(){
+        super();
     }
 
     /**
      * @param adResult The ad result instance
      */
-    public PageProcessor(AdResult adResult) {
+    public PageProcessor(AdResult adResult, int number) {
+        super(String.valueOf(number));
         this.adResult = adResult;
+        this.number = number;
     }
 
     @Override
     public void run() {
-        super.run();
+        while (true) {
+            int queryCount = this.adResult.queryCount.get();
+            if (queryCount <= 0) {
+                break;
+            }
+
+            Proxy proxy = this.adResult.proxies.get(queryCount % this.number);
+
+            if (!this.adResult.queries.isEmpty()) {
+                Query query = this.adResult.queries.poll();
+                this.process(query, proxy);
+                this.adResult.queryCount.decrementAndGet(); // The query count is a flag to quit program, other than that, no block lock needed, use Concurrent package instead
+            }
+
+            // Otherwise, wait for query count's decrement
+        }
     }
 
     private boolean testProxy(Proxy proxy) {
@@ -141,148 +130,140 @@ public class PageProcessor extends Thread{
         try {
             testProxy(proxy);
 
-            // TODO: nGram
-            // TODO: Add more than one page result
-            String queryStr = query.queryString;
-            String url = AMAZON_QUERY_URL + queryStr;
+            List<String> queryStrTokenList = Utility.cleanedTokenize(query.queryString);
+            Set<String> nGramStrSet = Utility.nGram(queryStrTokenList);
 
-            Document doc = Jsoup.connect(url).proxy(proxy).headers(headers).userAgent(USER_AGENT).timeout(this.timeOut).get();
+            for (String queryStr : nGramStrSet) {
+                for (int page = 1; page <= this.totalPages; page++) {
+                    String url = AMAZON_QUERY_URL + queryStr + "&page=" + page;
 
-            //System.out.println(doc.text());
-            //#s-results-list-atf
-            Elements results = doc.select("#s-results-list-atf").select("li"); // This is every result block's parent element
-            logger.info(HTML_MARKER, "Numbers of results: " + results.size());
-
-            int indexOfResultType = 0; // Which path to use for getting result within the various corresponding lists
-
-            for (int index = 0; index < titleList.size(); index++) {
-                String title_ele_path = "#result_" + Integer.toString(0) + titleList.get(index);
-                Element title_ele = doc.select(title_ele_path).first();
-                if (title_ele != null) {
-                    logger.info(HTML_MARKER, "Query result is shown in form " + index);
-                    indexOfResultType = index;
-                    break;
+                    this.processSingle(url, query, proxy); // nGram's query results are all counted on the original one
+                    Thread.sleep(0);
                 }
-            }
-
-            // No matched pattern TODO: AdResult clean
-            if (indexOfResultType == titleList.size()) {
-                logger.warn(HTML_MARKER, "Cannot use any pattern for " + query);
-                return;
-            }
-
-            for (int i = 0; i < results.size(); i++) {
-                Ad ad = new Ad();
-                ad.query = queryStr;
-                ad.queryGroupId = query.queryGroupId;
-                ad.keyWords = new ArrayList<>();
-                ad.bidPrice = query.bidPrice;
-                ad.campaignId = query.campaignId;
-                ad.price = 0.0;
-
-                // Get title
-                String title_ele_path = "#result_" + Integer.toString(i) + titleList.get(indexOfResultType);
-                Element title_ele = doc.select(title_ele_path).first();
-                if (title_ele != null) {
-                    logger.info(HTML_MARKER, query + " No. " + i + " title: " + title_ele.text());
-                    ad.title = title_ele.text();
-                    break;
-                }
-
-                if (Strings.isNullOrEmpty(ad.title)) {
-                    logger.warn(HTML_MARKER, "Cannot parse title for " + query);
-                    continue;
-                }
-
-                // Title clean
-                List<String> cleanedTitle = Utility.cleanedTokenize(ad.title);
-                ad.title = Joiner.on(Utility.spaceSeparator).skipNulls().join(cleanedTitle);
-
-                // Get detail, do dedupe
-                String detail_path = "#result_" + Integer.toString(i) + detailList.get(indexOfResultType);
-                Element detail_url_ele = doc.select(detail_path).first();
-                if (detail_url_ele != null) {
-                    logger.info(HTML_MARKER, query + " No. " + i + " detail: " + detail_url_ele.attr("href"));
-                    ad.detailUrl = detail_url_ele.attr("href");
-                } else {
-                    logger.warn(HTML_MARKER,"Cannot parse detail for query:" + query + ", title: " + ad.title);
-                    continue;
-                }
-
-                // Dedupe, do collection update at the end
-                if (this.adResult.queried.contains(ad.detailUrl)) {
-                    continue; // skip
-                }
-
-                // Get thumbnail
-                String thumbnail_path = "#result_" + Integer.toString(i) + thumbnailList.get(indexOfResultType);
-                Element thumbnail_ele = doc.select(thumbnail_path).first();
-                if (thumbnail_ele != null) {
-                    logger.info(HTML_MARKER, query + " No. " + i + " thumbnail: " + thumbnail_ele.attr("src"));
-                    ad.thumbnail = thumbnail_ele.attr("src");
-                } else {
-                    logger.warn(HTML_MARKER,"Cannot parse thumbnail for query:" + query + ", title: " + ad.title);
-                    continue;
-                }
-
-                // Get brand
-                String brand_path = "#result_" + Integer.toString(i) + brandList.get(indexOfResultType);
-                Element brand = doc.select(brand_path).first();
-                if (brand != null) {
-                    logger.info(HTML_MARKER, query + " No. " + i + " brand: " + brand.text());
-                    ad.brand = brand.text();
-                } else {
-                    logger.warn(HTML_MARKER,"Cannot parse brand for query:" + query + ", title: " + ad.title);
-                    continue;
-                }
-
-                // Get prices
-                String price_whole_path = "#result_" + Integer.toString(i) + priceList.get(indexOfResultType);
-                String price_fraction_path = "#result_" + Integer.toString(i) + priceFractionList.get(indexOfResultType);
-                Element price_whole_ele = doc.select(price_whole_path).first();
-                if (price_whole_ele != null) {
-                    String price_whole = price_whole_ele.text();
-                    logger.info(HTML_MARKER, query + " No. " + i + " price whole: " + price_whole);
-
-                    // remove ","
-                    // E.g.: 1,000
-                    if (price_whole.contains(Utility.commaSeparator)) {
-                        price_whole = price_whole.replaceAll(Utility.commaSeparator, "");
-                    }
-                    ad.price = Double.parseDouble(price_whole);
-                } else {
-                    logger.warn(HTML_MARKER,"Cannot parse price whole for query:" + query + ", title: " + ad.title);
-                    continue;
-                }
-
-                Element price_fraction_ele = doc.select(price_fraction_path).first();
-                if (price_fraction_ele != null) {
-                    logger.info(HTML_MARKER, query + " No. " + i + " price fraction: " + price_fraction_ele.text());
-                    ad.price = ad.price + Double.parseDouble(price_fraction_ele.text()) / 100.0;
-                } else {
-                    logger.warn(HTML_MARKER,"Cannot parse price fraction for query:" + query + ", title: " + ad.title);
-                    continue;
-                }
-
-                // Get category
-                Element category_ele = doc.select(categorySelector).first();
-                if (category_ele != null) {
-                    logger.info(HTML_MARKER, query + " No. " + i + " category: " + category_ele.text());
-                    ad.category = category_ele.text();
-                }
-
-                if (Strings.isNullOrEmpty(ad.category)) {
-                    logger.warn(HTML_MARKER,"Cannot parse category for query:" + query + ", title: " + ad.title);
-                    continue;
-                }
-
-                this.adResult.queried.add(ad.query);
-                this.adResult.visited.add(ad.detailUrl);
-                this.adResult.ads.offer(ad);
             }
         }
-        catch (NumberFormatException | IOException e) {
+        catch (NumberFormatException | IOException | InterruptedException e) {
             logger.trace(e.getMessage());
+        }
+    }
+
+    private void processSingle(String url, Query query, Proxy proxy) throws NumberFormatException, IOException {
+        url = url.replace(" ", "%20");
+
+        Document doc = Jsoup.connect(url).proxy(proxy).headers(headers).userAgent(USER_AGENT).timeout(this.timeOut).get();
+
+        //System.out.println(doc.text());
+        //#s-results-list-atf
+        Elements results = doc.select("#s-results-list-atf").select("li"); // This is every result block's parent element
+        logger.info(HTML_MARKER, "Numbers of results: " + results.size());
+
+        for (int i = 0; i < results.size(); i++) {
+            Ad ad = new Ad();
+            ad.query = query.queryString;
+            ad.queryGroupId = query.queryGroupId;
+            ad.keyWords = new ArrayList<>();
+            ad.bidPrice = query.bidPrice;
+            ad.campaignId = query.campaignId;
+            ad.price = 0.0;
+
+            // Get title
+            String title_ele_path = "#result_" + Integer.toString(i) + titleSelector;
+            Element title_ele = doc.select(title_ele_path).first();
+            if (title_ele != null) {
+                logger.info(HTML_MARKER, query + " No. " + i + " title: " + title_ele.text());
+                ad.title = title_ele.text();
+            }
+
+            if (Strings.isNullOrEmpty(ad.title)) {
+                logger.warn(HTML_MARKER, "Cannot parse title for " + query);
+                continue;
+            }
+
+            // Title clean
+            List<String> cleanedTitle = Utility.cleanedTokenize(ad.title);
+            ad.title = Joiner.on(Utility.spaceSeparator).skipNulls().join(cleanedTitle);
+
+            // Get detail, do dedupe
+            String detail_path = "#result_" + Integer.toString(i) + detailSelector;
+            Element detail_url_ele = doc.select(detail_path).first();
+            if (detail_url_ele != null) {
+                logger.info(HTML_MARKER, query + " No. " + i + " detail: " + detail_url_ele.attr("href"));
+                ad.detailUrl = detail_url_ele.attr("href");
+            } else {
+                logger.warn(HTML_MARKER,"Cannot parse detail for query:" + query + ", title: " + ad.title);
+                continue;
+            }
+
+            // Dedupe, do collection update at the end
+            if (this.adResult.queried.contains(ad.detailUrl)) {
+                continue; // skip
+            }
+
+            // Get thumbnail
+            String thumbnail_path = "#result_" + Integer.toString(i) + thumbnailSelector;
+            Element thumbnail_ele = doc.select(thumbnail_path).first();
+            if (thumbnail_ele != null) {
+                logger.info(HTML_MARKER, query + " No. " + i + " thumbnail: " + thumbnail_ele.attr("src"));
+                ad.thumbnail = thumbnail_ele.attr("src");
+            } else {
+                logger.warn(HTML_MARKER,"Cannot parse thumbnail for query:" + query + ", title: " + ad.title);
+                continue;
+            }
+
+            // Get brand
+            String brand_path = "#result_" + Integer.toString(i) + brandSelector;
+            Element brand = doc.select(brand_path).first();
+            if (brand != null) {
+                logger.info(HTML_MARKER, query + " No. " + i + " brand: " + brand.text());
+                ad.brand = brand.text();
+            } else {
+                logger.warn(HTML_MARKER,"Cannot parse brand for query:" + query + ", title: " + ad.title);
+                continue;
+            }
+
+            // Get prices
+            String price_whole_path = "#result_" + Integer.toString(i) + priceSelector;
+            String price_fraction_path = "#result_" + Integer.toString(i) + priceFractionSelector;
+            Element price_whole_ele = doc.select(price_whole_path).first();
+            if (price_whole_ele != null) {
+                String price_whole = price_whole_ele.text();
+                logger.info(HTML_MARKER, query + " No. " + i + " price whole: " + price_whole);
+
+                // remove ","
+                // E.g.: 1,000
+                if (price_whole.contains(Utility.commaSeparator)) {
+                    price_whole = price_whole.replaceAll(Utility.commaSeparator, "");
+                }
+                ad.price = Double.parseDouble(price_whole);
+            } else {
+                logger.warn(HTML_MARKER,"Cannot parse price whole for query:" + query + ", title: " + ad.title);
+                continue;
+            }
+
+            Element price_fraction_ele = doc.select(price_fraction_path).first();
+            if (price_fraction_ele != null) {
+                logger.info(HTML_MARKER, query + " No. " + i + " price fraction: " + price_fraction_ele.text());
+                ad.price = ad.price + Double.parseDouble(price_fraction_ele.text()) / 100.0;
+            } else {
+                logger.warn(HTML_MARKER,"Cannot parse price fraction for query:" + query + ", title: " + ad.title);
+                continue;
+            }
+
+            // Get category
+            Element category_ele = doc.select(categorySelector).first();
+            if (category_ele != null) {
+                logger.info(HTML_MARKER, query + " No. " + i + " category: " + category_ele.text());
+                ad.category = category_ele.text();
+            }
+
+            if (Strings.isNullOrEmpty(ad.category)) {
+                logger.warn(HTML_MARKER,"Cannot parse category for query:" + query + ", title: " + ad.title);
+                continue;
+            }
+
+            this.adResult.queried.add(ad.query);
+            this.adResult.visited.add(ad.detailUrl);
+            this.adResult.ads.offer(ad);
         }
     }
 }

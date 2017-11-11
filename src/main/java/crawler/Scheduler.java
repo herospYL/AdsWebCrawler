@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Generate the data needed for crawling
@@ -26,6 +28,7 @@ public class Scheduler {
     private String adProxyFilePath;
 
     private Scheduler() {
+        super();
     }
 
     /**
@@ -55,15 +58,15 @@ public class Scheduler {
     /**
      * Initialize both query list and proxy list for crawler
      */
-    public void Initialize() {
-        this.InitializeQuery();
-        this.InitializeProxy();
+    public void initialize() {
+        this.initializeQuery();
+        this.initializeProxy();
     }
 
     /**
      * Initialize the query queue for processor's use
      */
-    private void InitializeQuery() {
+    private void initializeQuery() {
         try (BufferedReader br = new BufferedReader(new FileReader(this.adQueryFilePath))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -95,7 +98,8 @@ public class Scheduler {
     /**
      * Initialize the proxy list for processor's use
      */
-    private void InitializeProxy() {
+    private void initializeProxy() {
+        List<Proxy> proxies = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(this.adProxyFilePath))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -106,8 +110,10 @@ public class Scheduler {
                 SocketAddress addr = new InetSocketAddress(ip, port);
                 Proxy proxy = new Proxy(Proxy.Type.HTTP, addr);
 
-                this.adResult.proxies.add(proxy);
+                proxies.add(proxy);
             }
+
+            this.adResult.setProxies(proxies);
         } catch (IOException e) {
             logger.trace(e.getMessage());
         }
