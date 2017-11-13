@@ -1,0 +1,1 @@
+A web crawler that craws Amazon products by different categories, given a file of queries. The  results are treated as the ad data
