@@ -13,6 +13,7 @@ import java.net.Proxy;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Generate the data needed for crawling
@@ -89,7 +90,7 @@ public class Scheduler {
                 this.adResult.queries.offer(adQuery);
             }
 
-            this.adResult.queryCount.set(this.adResult.queries.size()); // Set the count to query size
+            this.adResult.latch = new CountDownLatch(this.adResult.queries.size()); // Set the count to query size
         } catch (IOException e) {
             logger.trace(e.getMessage());
         }

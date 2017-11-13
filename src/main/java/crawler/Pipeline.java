@@ -68,20 +68,18 @@ public class Pipeline extends Thread {
 
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file.getAbsoluteFile()))) {
                 while (true) {
-                    if (adResult.ads.isEmpty()) {
-                        if (adResult.queries.isEmpty() && adResult.queryCount.get() <= 0) {
-                            break;
-                        }
-
-                        // Otherwise, keep waiting
-                    } else {
-                        Ad ad = this.adResult.ads.poll();
+                    Ad ad = this.adResult.ads.take();
+                    if (ad != null && ad != AdResult.POISON_PILL) {
                         String jsonInString = this.mapper.writeValueAsString(ad);
+                        logger.debug("Item: " + jsonInString);
                         bw.write(jsonInString);
                         bw.newLine();
                     }
+                    else if (ad == AdResult.POISON_PILL){
+                        break;
+                    }
                 }
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 logger.trace(e.getMessage());
                 return;
             }

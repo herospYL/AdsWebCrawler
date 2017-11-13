@@ -17,10 +17,7 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.net.Proxy;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -42,7 +39,7 @@ public class PageProcessor extends Thread{
 
     private static final String titleSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div:nth-child(1) > a > h2";
 
-    private static final String categorySelector = "#leftNav > #leftNavContainer > a-unordered-list.a-nostyle.a-vertical.a-spacing-base > div.a-row.a-expander-container.a-expander-extend-container > li:nth-child(1) > span > a > h4";
+    private static final String categorySelector = "#leftNavContainer > ul:nth-child(1) > div.a-row.a-expander-container.a-expander-extend-container > li:nth-child(1) > span > a > h4";
 
     private static final String thumbnailSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-left > div > div > a > img";
 
@@ -50,15 +47,17 @@ public class PageProcessor extends Thread{
 
     private static final String brandSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div.a-row.a-spacing-small > div:nth-child(2) > span:nth-child(2)";
 
-    private static final String priceSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-last-child(1) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span.a-color-base sx-zero-spacing > span > span";
+    private static final String priceSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-last-child(1) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span.a-color-base.sx-zero-spacing > span > span";
 
-    private static final String priceFractionSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-last-child(1) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span.a-color-base sx-zero-spacing > span > sup.sx-price-fractional";
+    private static final String priceFractionSelector = " > div > div > div > div.a-fixed-left-grid-col.a-col-right > div:nth-last-child(1) > div.a-column.a-span7 > div.a-row.a-spacing-none > a > span.a-color-base.sx-zero-spacing > span > sup.sx-price-fractional";
 
     private static ImmutableMap<String, String> headers;
 
     private AdResult adResult;
 
     private int number;
+
+    private Random random;
 
     public int timeOut = 10000;
 
@@ -83,25 +82,25 @@ public class PageProcessor extends Thread{
         super(String.valueOf(number));
         this.adResult = adResult;
         this.number = number;
+        this.random = new Random();
     }
 
     @Override
     public void run() {
-        while (true) {
-            int queryCount = this.adResult.queryCount.get();
-            if (queryCount <= 0) {
-                break;
-            }
+        logger.debug(this.getThreadName() + " started");
 
-            Proxy proxy = this.adResult.proxies.get(queryCount % this.number);
+        while (true) {
+            Proxy proxy = this.adResult.proxies.get(this.random.nextInt() % this.number);
 
             if (!this.adResult.queries.isEmpty()) {
                 Query query = this.adResult.queries.poll();
                 this.process(query, proxy);
-                this.adResult.queryCount.decrementAndGet(); // The query count is a flag to quit program, other than that, no block lock needed, use Concurrent package instead
+                this.adResult.latch.countDown();
             }
-
-            // Otherwise, wait for query count's decrement
+            else {
+                logger.debug(this.getThreadName() + "ended");
+                break;
+            }
         }
     }
 
@@ -118,7 +117,7 @@ public class PageProcessor extends Thread{
     }
 
     private String getThreadName(){
-        return "Thread: " + currentThread().getName();
+        return "Thread: " + this.number;
     }
 
     /**
@@ -138,7 +137,6 @@ public class PageProcessor extends Thread{
                     String url = AMAZON_QUERY_URL + queryStr + "&page=" + page;
 
                     this.processSingle(url, query, proxy); // nGram's query results are all counted on the original one
-                    Thread.sleep(0);
                 }
             }
         }
@@ -147,7 +145,7 @@ public class PageProcessor extends Thread{
         }
     }
 
-    private void processSingle(String url, Query query, Proxy proxy) throws NumberFormatException, IOException {
+    private void processSingle(String url, Query query, Proxy proxy) throws NumberFormatException, IOException, InterruptedException {
         url = url.replace(" ", "%20");
 
         Document doc = Jsoup.connect(url).proxy(proxy).headers(headers).userAgent(USER_AGENT).timeout(this.timeOut).get();

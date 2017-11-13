@@ -5,14 +5,18 @@ import com.google.common.collect.ImmutableList;
 
 import java.net.Proxy;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class AdResult {
 
+    public static final Ad POISON_PILL = new Ad(); //special object to kill consumers
+
     public ConcurrentLinkedQueue<Query> queries;
 
-    public ConcurrentLinkedQueue<Ad> ads;
+    public BlockingQueue<Ad> ads;
 
     public ConcurrentHashMultiset<String> queried; // Already queried queries
 
@@ -20,14 +24,13 @@ public class AdResult {
 
     public ImmutableList<Proxy> proxies;
 
-    public AtomicInteger queryCount;
+    public CountDownLatch latch;
 
     public AdResult(){
         this.queries = new ConcurrentLinkedQueue<>();
-        this.ads = new ConcurrentLinkedQueue<>();
+        this.ads = new LinkedBlockingQueue<>();
         this.queried = ConcurrentHashMultiset.create();
         this.visited = ConcurrentHashMultiset.create();
-        this.queryCount = new AtomicInteger(0);
     }
 
     public void setProxies(List<Proxy> proxies) {

@@ -2,9 +2,11 @@ package crawler;
 
 import ad.AdResult;
 
+import static ad.AdResult.POISON_PILL;
+
 public class CrawlerMain {
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws InterruptedException {
         if (args.length < 2) {
             System.out.println("Usage: Crawler <rawQueryDataFilePath> <adsDataFilePath> <proxyFilePath> <crawlerCount>");
             System.exit(0);
@@ -28,10 +30,15 @@ public class CrawlerMain {
         }
 
         // Start crawling
+        pipeline.start();
+
         for (PageProcessor pr : processors) {
-            pr.run();
+            pr.start();
         }
 
-        pipeline.run();
+        //wait until all producer down
+        adResult.latch.await();
+        //put poison pill
+        adResult.ads.offer(POISON_PILL);
     }
 }
